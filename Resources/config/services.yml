@@ -10,6 +10,31 @@ services:
         tags:
             - { name: kunstmaan_search.searchconfiguration, alias: Node }
 
+    kunstmaan_node_search.searchconfiguration.node_better:
+        class: Kunstmaan\NodeSearchBundle\Configuration\NodePagesConfiguration
+        arguments: ["nodebetter", "pages", "@kunstmaan_search.searchprovider.elastica", "%requiredlocales%", "%analyzer_languages%", "@doctrine.orm.entity_manager", "@service_container"]
+        tags:
+            - { name: kunstmaan_search.searchconfiguration, alias: NodeBetter }
+
+    kunstmaan_node_search.search.abstract_elastica_searcher:
+        class: Kunstmaan\NodeSearchBundle\Search\AbstractElasticaSearcher
+        abstract: true
+        calls:
+            - [ setProvider, ["@kunstmaan_search.searchprovider.elastica"]]
+
+
+    kunstmaan_node_search.search.node:
+        class: Kunstmaan\NodeSearchBundle\Search\NodeSearcher
+        parent: kunstmaan_node_search.search.abstract_elastica_searcher
+        calls:
+            - [ setIndexName, ["nodebetter"]]
+
+    kunstmaan_node_search.search.oldnode:
+        class: Kunstmaan\NodeSearchBundle\Search\OldNodeSearcher
+        parent: kunstmaan_node_search.search.abstract_elastica_searcher
+        calls:
+            - [ setIndexName, ["myprojectnodeindex"]]
+
     kunstmaan_node_search.node_index_update.listener:
         class: Kunstmaan\NodeSearchBundle\EventListener\NodeIndexUpdateEventListener
         arguments: ["@service_container"]
