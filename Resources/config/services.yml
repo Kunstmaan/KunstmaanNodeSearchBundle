@@ -2,19 +2,13 @@ parameters:
     kunstmaan_node_search.searchconfiguration.node.class: Kunstmaan\NodeSearchBundle\Configuration\NodeSearchConfiguration
     kunstmaan_node_search.indexname: "nodeindex"
     kunstmaan_node_search.indextype: "page"
-services:
 
+services:
     kunstmaan_node_search.searchconfiguration.node:
-        class: "%kunstmaan_node_search.searchconfiguration.node.class%"
-        arguments: ["@service_container", "@kunstmaan_search.search", "%kunstmaan_node_search.indexname%", "%kunstmaan_node_search.indextype%"]
+        class: Kunstmaan\NodeSearchBundle\Configuration\NodePagesConfiguration
+        arguments: ["%kunstmaan_node_search.indexname%", "%kunstmaan_node_search.indextype%", "@kunstmaan_search.searchprovider.elastica", "%requiredlocales%", "%analyzer_languages%", "@doctrine.orm.entity_manager", "@service_container"]
         tags:
             - { name: kunstmaan_search.searchconfiguration, alias: Node }
-
-    kunstmaan_node_search.searchconfiguration.node_better:
-        class: Kunstmaan\NodeSearchBundle\Configuration\NodePagesConfiguration
-        arguments: ["nodebetter", "pages", "@kunstmaan_search.searchprovider.elastica", "%requiredlocales%", "%analyzer_languages%", "@doctrine.orm.entity_manager", "@service_container"]
-        tags:
-            - { name: kunstmaan_search.searchconfiguration, alias: NodeBetter }
 
     kunstmaan_node_search.search.abstract_elastica_searcher:
         class: Kunstmaan\NodeSearchBundle\Search\AbstractElasticaSearcher
@@ -27,13 +21,8 @@ services:
         class: Kunstmaan\NodeSearchBundle\Search\NodeSearcher
         parent: kunstmaan_node_search.search.abstract_elastica_searcher
         calls:
-            - [ setIndexName, ["nodebetter"]]
-
-    kunstmaan_node_search.search.oldnode:
-        class: Kunstmaan\NodeSearchBundle\Search\OldNodeSearcher
-        parent: kunstmaan_node_search.search.abstract_elastica_searcher
-        calls:
-            - [ setIndexName, ["myprojectnodeindex"]]
+            - [ setIndexName, ["%kunstmaan_node_search.indexname%"]]
+            - [ setIndexType, ["%kunstmaan_node_search.indextype%"]]
 
     kunstmaan_node_search.node_index_update.listener:
         class: Kunstmaan\NodeSearchBundle\EventListener\NodeIndexUpdateEventListener

@@ -16,16 +16,17 @@ class NodeSearcher extends AbstractElasticaSearcher implements SearcherInterface
         $elasticaFilterLang = new \Elastica\Filter\Term();
         $elasticaFilterLang->setTerm('lang', $lang);
 
-//        $elasticaFilterType = new \Elastica\Filter\Term();
-//        $elasticaFilterType->setTerm('type', $type);
-
         $elasticaFilterAnd = new \Elastica\Filter\BoolAnd();
         $elasticaFilterAnd->addFilter($elasticaFilterLang);
+        if ($type !== null) {
+            $elasticaFilterType = new \Elastica\Filter\Term();
+            $elasticaFilterType->setTerm('type', $type);
+            $elasticaFilterAnd->addFilter($elasticaFilterType);
+        }
 
         $elasticaQueryString  = new \Elastica\Query\Match();
         $elasticaQueryString->setFieldQuery('content', $query);
         $elasticaQueryString->setFieldMinimumShouldMatch('content', '80%');
-
 
         $elasticaQueryTitle  = new \Elastica\Query\QueryString();
         $elasticaQueryTitle->setDefaultField('title');

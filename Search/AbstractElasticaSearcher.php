@@ -10,10 +10,13 @@ namespace Kunstmaan\NodeSearchBundle\Search;
 
 
 use Elastica\Query;
+use Elastica\Search;
+use Elastica\Suggest;
 
 abstract class AbstractElasticaSearcher
 {
     protected   $indexName;
+    protected   $indexType;
     protected   $type;
     protected   $provider;
 
@@ -32,7 +35,23 @@ abstract class AbstractElasticaSearcher
         $this->setPagination($offset, $size);
 
         $index = $this->provider->getIndex($this->getIndexName());
-        $result = $index->search($this->query);
+        $search = new Search($this->provider->getClient());
+        $search->addIndex($index);
+        $search->addType($index->getType($this->indexType.'_'.$this->language));
+
+//        $suggestTerm = new Suggest\Phrase('title-suggester', 'title');
+//        $suggestTerm->setText($this->data);
+//        $suggestTerm->setConfidence(0);
+//        $suggestTerm->setGramSize(2);
+
+//        $suggest = new Suggest();
+//        $suggest->addSuggestion($suggestTerm);
+//        print_r($suggest->toArray());
+//
+//
+//        $search->setSuggest($suggest);
+//        var_dump($search->search($this->query)->hasSuggests()); exit;
+        $result = $search->search($this->query);
 
         return $result;
     }
@@ -62,6 +81,22 @@ abstract class AbstractElasticaSearcher
     public function getIndexName()
     {
         return $this->indexName;
+    }
+
+    /**
+     * @param mixed $indexType
+     */
+    public function setIndexType($indexType)
+    {
+        $this->indexType = $indexType;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getIndexType()
+    {
+        return $this->indexType;
     }
 
     /**

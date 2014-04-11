@@ -80,71 +80,10 @@ class AbstractSearchPage extends AbstractPage implements ShouldBeIndexed
      */
     public function search(ContainerInterface $container, $querystring, $type, array $tags, $lang, $pagenumber)
     {
-//        $start = microtime(true);
-//        $search = $container->get('kunstmaan_search.search');
-//        $sherlock = $container->get('kunstmaan_search.searchprovider.sherlock');
-//        $request = $sherlock->getSherlock()->search();
-//
-//        $titleQuery = Sherlock::queryBuilder()->Match()->field("title")->query($querystring)->fuzziness(0.7);
-//        $contentQuery = Sherlock::queryBuilder()->Match()->field("content")->query($querystring)->fuzziness(0.7);
-//        $langQuery = Sherlock::queryBuilder()->Term()->field("lang")->term($lang);
-//
-//        $querystringQuery = Sherlock::queryBuilder()->Bool()->should($titleQuery, $contentQuery)->minimum_number_should_match(1);
-//        $query = Sherlock::queryBuilder()->Bool()->must($langQuery, $querystringQuery)->minimum_number_should_match(1);
-//
-//        if (count($tags) > 0) {
-//            $tagQueries = array();
-//            foreach ($tags as $tag) {
-//                $tagQueries[] = Sherlock::queryBuilder()->Term()->field("tags")->term($tag);
-//            }
-//            $tagQuery = Sherlock::queryBuilder()->Bool()->must($tagQueries)->minimum_number_should_match(1);
-//            $query = Sherlock::queryBuilder()->Bool()->must($tagQuery, $query)->minimum_number_should_match(1);
-//        }
-//
-//        if ($type && $type != '') {
-//            $typeQuery = Sherlock::queryBuilder()->Term()->field("type")->term($type);
-//            $query = Sherlock::queryBuilder()->Bool()->must($typeQuery, $query)->minimum_number_should_match(1);
-//        }
-//
-//        $request->query($query);
-//
-//        $tagFacet = Sherlock::facetBuilder()->Terms()->fields("tags")->facetname("tag");
-//        $typeFacet = Sherlock::facetBuilder()->Terms()->fields("type")->facetname("type");
-//        $request->facets($tagFacet, $typeFacet);
-//
-//        $highlight = Sherlock::highlightBuilder()->Highlight()->pre_tags(array("<strong>"))->post_tags(array("</strong>"))->fields(array("content" => array("fragment_size" => 250, "number_of_fragments" => 1)));
-//
-//        $request->highlight($highlight);
-//
-//        $adapter = new SherlockRequestAdapter($search, "nodeindex", "page", $request);
-//        var_dump($adapter->getFullResponse());
-//        $pagerfanta = new Pagerfanta($adapter);
-//        $pagerfanta->setMaxPerPage($this->defaultperpage);
-//        try {
-//            $pagerfanta->setCurrentPage($pagenumber);
-//        } catch (NotValidCurrentPageException $e) {
-//            throw new NotFoundHttpException();
-//        }
-//        $end = microtime(true) - $start;
-//
-//
-//
-//        $searcher = $container->get('kunstmaan_node_search.search.oldnode');
-//        $searcher->setData($querystring);
-//        $searcher->setContentType($type);
-//        $searcher->setLanguage($lang);
-//        var_dump($searcher->search());
-//
-
-
-
-//        $start2 = microtime(true);
         $searcher = $container->get($this->getSearcher());
         $searcher->setData($querystring);
         $searcher->setContentType($type);
         $searcher->setLanguage($lang);
-
-//        var_dump($searcher->search()); exit;
 
         $adapter = new SearcherRequestAdapter($searcher);
         $pagerfanta = new Pagerfanta($adapter);
@@ -154,9 +93,6 @@ class AbstractSearchPage extends AbstractPage implements ShouldBeIndexed
         } catch (NotValidCurrentPageException $e) {
             throw new NotFoundHttpException();
         }
-//        $end2 = microtime(true) - $start2;
-
-//        var_dump('old way: ' . $end . '    new way: ' . $end2); exit;
 
         return $pagerfanta;
     }

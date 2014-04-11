@@ -11,10 +11,13 @@ namespace Kunstmaan\NodeSearchBundle\Configuration;
 
 use Kunstmaan\NodeBundle\Entity\Node;
 use Kunstmaan\NodeBundle\Entity\NodeTranslation;
+use Kunstmaan\NodeSearchBundle\Event\Events;
+use Kunstmaan\NodeSearchBundle\Event\IndexNodeEvent;
 use Kunstmaan\NodeSearchBundle\Helper\HasCustomSearchType;
 use Kunstmaan\PagePartBundle\Helper\HasPagePartsInterface;
 use Kunstmaan\SearchBundle\Configuration\SearchConfigurationInterface;
 use Kunstmaan\SearchBundle\Helper\ShouldBeIndexed;
+use Kunstmaan\SearchBundle\Search\AnalysisFactory;
 use Kunstmaan\UtilitiesBundle\Helper\ClassLookup;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -34,7 +37,7 @@ class NodePagesConfiguration implements SearchConfigurationInterface
         $this->indexName = $name;
         $this->indexType = $type;
         $this->provider = $provider;
-        $this->locales = $locales;
+        $this->locales = explode('|', $locales);
         $this->analyzerLanguages = $analyzerLanguages;
         $this->em = $em;
         $this->container = $container;
@@ -42,23 +45,34 @@ class NodePagesConfiguration implements SearchConfigurationInterface
 
     public function createIndex()
     {
+        //build new index
         $index = $this->provider->createIndex($this->indexName);
 
-        $this->setAnalysis($index);
-        $this->setMapping($index);
+        //create analysis
+        $analysis = $this->container->get('kunstmaan_search.search.factory.analysis');
+        foreach ($this->locales as $locale) {
+            $analysis->addIndexAnalyzer($locale);
+        }
+
+        //create index with analysis
+        $this->setAnalysis($index, $analysis);
+
+        //create mapping
+        foreach ($this->locales as $locale) {
+            $this->setMapping($index, $locale);
+        }
+
     }
 
     public function populateIndex()
     {
         $nodeRepository = $this->em->getRepository('KunstmaanNodeBundle:Node');
 
-        $locales = explode('|', $this->locales);
-
         $nodes = $nodeRepository->getAllTopNodes();
 
-        foreach ($locales as $lang) {
+        foreach ($this->locales as $lang) {
             foreach ($nodes as $node) {
-                $this->indexNode($node, $lang);
+                $this->createNodeDocuments($node, $lang);
             }
         }
 
@@ -66,6 +80,12 @@ class NodePagesConfiguration implements SearchConfigurationInterface
     }
 
     public function indexNode(Node $node, $lang)
+    {
+        $this->createNodeDocuments($node, $lang);
+        $this->provider->addDocuments($this->documents);
+    }
+
+    public function createNodeDocuments(Node $node, $lang)
     {
         $nodeTranslation = $node->getNodeTranslation($lang);
         if ($nodeTranslation) {
@@ -106,9 +126,9 @@ class NodePagesConfiguration implements SearchConfigurationInterface
                         "lang"                  => $nodeTranslation->getLang(),
                         "slug"                  => $nodeTranslation->getFullSlug(),
                     );
-//                    $this->container->get('logger')->info("Indexing document : " . implode(', ', $doc));
-                    // Type
+                    $this->container->get('logger')->info("Indexing document : " . implode(', ', $doc));
 
+                    // Type
                     $type = ClassLookup::getClassName($page);
                     if($page instanceof HasCustomSearchType){
                         $type = $page->getSearchType();
@@ -154,14 +174,15 @@ class NodePagesConfiguration implements SearchConfigurationInterface
                     $doc = array_merge($doc, array("content" => $content));
 
                     // Trigger index node event
-//                    $event = new IndexNodeEvent($page, $doc);
-//
-//                    $dispatcher = $this->container->get('event_dispatcher');
-//                    $dispatcher->dispatch(Events::INDEX_NODE, $event);
+                    $event = new IndexNodeEvent($page, $doc);
+
+                    $dispatcher = $this->container->get('event_dispatcher');
+                    $dispatcher->dispatch(Events::INDEX_NODE, $event);
 
                     // Add document to index
                     $uid = "nodetranslation_" . $nodeTranslation->getId();
-                    $this->documents[] = $this->provider->createDocument($uid, $doc, $this->indexType, $this->indexName);
+
+                    $this->documents[] = $this->provider->createDocument($uid, $doc, $this->indexType.'_'.$nodeTranslation->getLang(), $this->indexName);
                 }
 
                 return true; // return true even if the page itself should not be indexed. This makes sure its children are being processed (i.e. structured nodes)
@@ -171,142 +192,47 @@ class NodePagesConfiguration implements SearchConfigurationInterface
         return false;
     }
 
+    public function deleteNodeTranslation(NodeTranslation $nodeTranslation)
+    {
+        $uid = "nodetranslation_" . $nodeTranslation->getId();
+        $this->provider->deleteDocument($this->indexName, $this->indexType, $uid);
+    }
 
     public function deleteIndex()
     {
-
+        $this->provider->deleteIndex($this->indexName);
     }
 
-    public function setAnalysis(\Elastica\Index $index)
+    public function setAnalysis(\Elastica\Index $index, AnalysisFactory $analysis)
     {
         $index->create(
             array(
                 'number_of_shards' => 4,
                 'number_of_replicas' => 1,
-                'analysis' => array(
-                    'analyzer' => array(
-                        'index_analyzer_old' => array(
-                            'type' => 'custom',
-                            'tokenizer' => 'nGram',
-                            'filter' => array('stopwords', 'asciifolding', 'lowercase', 'stemmer_nl', 'elision')
-                        ),
-                        'search_analyzer' => array(
-                            'type' => 'custom',
-                            'tokenizer' => 'standard',
-                            'filter' => array('stopwords', 'asciifolding', 'lowercase', 'stemmer_nl', 'elision', 'worddelimiter')
-                        ),
-                        'index_analyzer' => array(
-                            'type' => 'custom',
-                            'tokenizer' => 'standard',
-                            'filter' => array('lowercase', 'asciifolding', 'stemmer_nl')
-                        ),
-                        'stemmer_en' => array(
-                            'type' => 'custom',
-                            'tokenizer' => 'standard',
-                            'filter' => array('standard', 'lowercase', 'stop', 'stemmer_en')
-                        ),
-                        'stemmer_nl' => array(
-                            'type' => 'custom',
-                            'tokenizer' => 'standard',
-                            'filter' => array('standard', 'lowercase', 'stemmer_nl')
-                        ),
-                        'stemmer_fr' => array(
-                            'type' => 'custom',
-                            'tokenizer' => 'standard',
-                            'filter' => array('standard', 'lowercase', 'stop', 'stemmer_fr')
-                        ),
-                        'ngram_analyzer_en' => array(
-                            'type' => 'custom',
-                            'tokenizer' => 'myNGram',
-                            'filter' => array('lowercase', 'stemmer_en')
-                        ),
-                        'ngram_analyzer_nl' => array(
-                            'type' => 'custom',
-                            'tokenizer' => 'myNGram',
-                            'filter' => array('lowercase', 'stemmer_nl')
-                        ),
-                        'ngram_analyzer_fr' => array(
-                            'type' => 'custom',
-                            'tokenizer' => 'myNGram',
-                            'filter' => array('lowercase', 'stemmer_fr')
-                        )
-                    ),
-                    'filter' => array(
-                        'stemmer_en' => array(
-                            'type' => 'stemmer',
-                            'language' => 'english'
-                        ),
-                        'stemmer_nl' => array(
-                            'type' => 'stemmer',
-                            'language' => 'dutch'
-                        ),
-                        'stemmer_fr' => array(
-                            'type' => 'stemmer',
-                            'language' => 'french'
-                        ),
-                        "elision" => array(
-                            "type" => "elision",
-                            "articles" => array("l", "m", "t", "qu", "n", "s", "j")
-                        ),
-                        "stopwords" => array(
-                            "type" => "stop",
-                            "stopwords" => "_dutch_",
-                            "ignore_case" => true
-                        ),
-                        "worddelimiter" => array(
-                            "type" => "word_delimiter"
-                        )
-
-                    ),
-                    'tokenizer' => array(
-                        'myNGram' => array(
-                            'type' => 'edgeNGram',
-                            'min_gram' => 3,
-                            'max_gram' => 255,
-                            "token_chars" => array("letter", "digit")
-                        ),
-                        'nGram' => array(
-                            'type' => 'nGram',
-                            'min_gram' => 3,
-                            'max_gram' => 20
-                        )
-
-                    )
-                )
-            ),
-            true);
-
-        $index->refresh();
+                'analysis' => $analysis->build()
+            ));
     }
 
-    public function setMapping(\Elastica\Index $index){
+    public function setMapping(\Elastica\Index $index, $lang = 'en'){
         $mapping = new \Elastica\Type\Mapping();
-        $mapping->setType($index->getType($this->indexType));
-        $mapping->setParam('index_analyzer', 'index_analyzer');
-//        $mapping->setParam('search_analyzer', 'stemmer'.$langSuffix);
-        $mapping->setParam('search_analyzer', 'stemmer_nl');
+        $mapping->setType($index->getType($this->indexType.'_'.$lang));
+        $mapping->setParam('analyzer', 'index_analyzer_'.$lang);
+        $mapping->setParam('_boost', array('name' => '_boost', 'null_value' => 1.0));
 
-
-        // Define boost field
-//        $mapping->setParam('_boost', array('name' => '_boost', 'null_value' => 1.0));
-
-        // Set mapping
         $mapping->setProperties(array(
             'node_id'      => array('type' => 'integer', 'include_in_all' => false, 'index' => 'not_analyzed'),
             'nodetranslation_id'      => array('type' => 'integer', 'include_in_all' => false, 'index' => 'not_analyzed'),
             'nodeversion_id'      => array('type' => 'integer', 'include_in_all' => false, 'index' => 'not_analyzed'),
-            'title'    => array('type' => 'string', 'include_in_all' => true, 'index_analyzer' => 'ngram_analyzer_nl'),
+            'title'    => array('type' => 'string', 'include_in_all' => true),
             'lang' => array('type' => 'string', 'include_in_all' => true, 'index' => 'not_analyzed'),
-            'slug'  => array('type' => 'string', 'include_in_all' => false, 'index' => 'no'),
+            'slug'  => array('type' => 'string', 'include_in_all' => false, 'index' => 'not_analyzed'),
             'type'     => array('type' => 'string', 'include_in_all' => false, 'index' => 'not_analyzed'),
-            'contentanalyzer'  => array('type' => 'string', 'include_in_all' => true, 'index' => 'no'),
-            'content'=> array('type' => 'string', 'include_in_all' => true, '_boost' => 2),
-//            '_boost'  => array('type' => 'float', 'include_in_all' => FALSE)
+            'contentanalyzer'  => array('type' => 'string', 'include_in_all' => true, 'index' => 'not_analyzed'),
+            'content'=> array('type' => 'string', 'include_in_all' => true),
+            '_boost'  => array('type' => 'float', 'include_in_all' => false)
         ));
 
-        // Send mapping to type
         $mapping->send();
-
         $index->refresh();
     }
-} 
+}
