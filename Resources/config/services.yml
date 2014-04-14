@@ -6,7 +6,7 @@ parameters:
 services:
     kunstmaan_node_search.searchconfiguration.node:
         class: Kunstmaan\NodeSearchBundle\Configuration\NodePagesConfiguration
-        arguments: ["%kunstmaan_node_search.indexname%", "%kunstmaan_node_search.indextype%", "@kunstmaan_search.searchprovider.elastica", "%requiredlocales%", "%analyzer_languages%", "@doctrine.orm.entity_manager", "@service_container"]
+        arguments: ["@service_container", "@kunstmaan_search.search", "%kunstmaan_node_search.indexname%", "%kunstmaan_node_search.indextype%"]
         tags:
             - { name: kunstmaan_search.searchconfiguration, alias: Node }
 
@@ -14,7 +14,7 @@ services:
         class: Kunstmaan\NodeSearchBundle\Search\AbstractElasticaSearcher
         abstract: true
         calls:
-            - [ setProvider, ["@kunstmaan_search.searchprovider.elastica"]]
+            - [ setSearch, ["@kunstmaan_search.search"]]
 
 
     kunstmaan_node_search.search.node:

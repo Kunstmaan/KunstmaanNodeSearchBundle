@@ -83,10 +83,15 @@ class SearcherRequestAdapter implements AdapterInterface
         $data = $result->getResults();
         $bcResponse = array();
         foreach($data as $item){
-            $bcResponse[] = array(
-                '_source' => $item->getData(),
-                'highlight' => $item->getHighlights()
-            );
+            $content = array();
+            $content['_source'] = $item->getData();
+
+            $highlights = $item->getHighlights();
+            if(!empty($highlights)){
+                $content['highlight'] = $highlights;
+            }
+
+            $bcResponse[] = $content;
         }
 
         return $bcResponse;

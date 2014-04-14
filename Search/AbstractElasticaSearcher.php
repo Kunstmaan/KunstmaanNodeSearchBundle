@@ -12,13 +12,18 @@ namespace Kunstmaan\NodeSearchBundle\Search;
 use Elastica\Query;
 use Elastica\Search;
 use Elastica\Suggest;
+use Kunstmaan\SearchBundle\Search\Search as SearchLayer;
 
 abstract class AbstractElasticaSearcher
 {
     protected   $indexName;
     protected   $indexType;
     protected   $type;
-    protected   $provider;
+
+    /**
+     * @var SearchLayer
+     */
+    protected   $search;
 
     protected   $query;
     protected   $data;
@@ -34,30 +39,28 @@ abstract class AbstractElasticaSearcher
         $this->defineSearch($this->data, $this->language, $this->contentType);
         $this->setPagination($offset, $size);
 
-        $index = $this->provider->getIndex($this->getIndexName());
-        $search = new Search($this->provider->getClient());
-        $search->addIndex($index);
-        $search->addType($index->getType($this->indexType.'_'.$this->language));
-
-        $result = $search->search($this->query);
-
-        return $result;
+        return $this->getSearchResult();
     }
 
     public function getSuggestions()
     {
-        $suggestPrase = new Suggest\Phrase('content-suggester', 'content');
-        $suggestPrase->setText($this->data);
-        $suggestPrase->setAnalyzer('suggestion_analyzer_'.$this->language);
-        $suggestPrase->setHighlight("<strong>", "</strong>");
-        $suggestPrase->setConfidence(2);
-        $suggestPrase->setSize(1);
+        $suggestPhrase = new Suggest\Phrase('content-suggester', 'content');
+        $suggestPhrase->setText($this->data);
+        $suggestPhrase->setAnalyzer('suggestion_analyzer_'.$this->language);
+        $suggestPhrase->setHighlight("<strong>", "</strong>");
+        $suggestPhrase->setConfidence(2);
+        $suggestPhrase->setSize(1);
 
-        $suggest = new Suggest($suggestPrase);
+        $suggest = new Suggest($suggestPhrase);
         $this->query->setSuggest($suggest);
 
-        $index = $this->provider->getIndex($this->getIndexName());
-        $search = new Search($this->provider->getClient());
+        return $this->getSearchResult();
+    }
+
+    public function getSearchResult()
+    {
+        $index = $this->search->getIndex($this->getIndexName());
+        $search = new Search($this->search->getClient());
         $search->addIndex($index);
         $search->addType($index->getType($this->indexType.'_'.$this->language));
 
@@ -107,22 +110,6 @@ abstract class AbstractElasticaSearcher
     public function getIndexType()
     {
         return $this->indexType;
-    }
-
-    /**
-     * @param mixed $provider
-     */
-    public function setProvider($provider)
-    {
-        $this->provider = $provider;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getProvider()
-    {
-        return $this->provider;
     }
 
     /**
@@ -189,4 +176,19 @@ abstract class AbstractElasticaSearcher
         return $this->contentType;
     }
 
+    /**
+     * @param mixed $search
+     */
+    public function setSearch($search)
+    {
+        $this->search = $search;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getSearch()
+    {
+        return $this->search;
+    }
 }

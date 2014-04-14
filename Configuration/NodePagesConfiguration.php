@@ -25,28 +25,28 @@ class NodePagesConfiguration implements SearchConfigurationInterface
 {
     private $indexName;
     private $indexType;
-    private $provider;
+    private $search;
     private $locales;
     private $analyzerLanguages;
     private $em;
     private $container;
     private $documents;
 
-    public function __construct($name, $type, $provider, $locales, $analyzerLanguages, $em, $container)
+    public function __construct($container, $search, $name, $type)
     {
+        $this->container = $container;
         $this->indexName = $name;
         $this->indexType = $type;
-        $this->provider = $provider;
-        $this->locales = explode('|', $locales);
-        $this->analyzerLanguages = $analyzerLanguages;
-        $this->em = $em;
-        $this->container = $container;
+        $this->search = $search;
+        $this->locales = explode('|', $this->container->getParameter('requiredlocales'));
+        $this->analyzerLanguages = $this->container->getParameter('analyzer_languages');
+        $this->em = $this->container->get('doctrine')->getManager();
     }
 
     public function createIndex()
     {
         //build new index
-        $index = $this->provider->createIndex($this->indexName);
+        $index = $this->search->createIndex($this->indexName);
 
         //create analysis
         $analysis = $this->container->get('kunstmaan_search.search.factory.analysis');
@@ -77,13 +77,13 @@ class NodePagesConfiguration implements SearchConfigurationInterface
             }
         }
 
-        $this->provider->addDocuments($this->documents);
+        $this->search->addDocuments($this->documents);
     }
 
     public function indexNode(Node $node, $lang)
     {
         $this->createNodeDocuments($node, $lang);
-        $this->provider->addDocuments($this->documents);
+        $this->search->addDocuments($this->documents);
     }
 
     public function createNodeDocuments(Node $node, $lang)
@@ -183,7 +183,7 @@ class NodePagesConfiguration implements SearchConfigurationInterface
                     // Add document to index
                     $uid = "nodetranslation_" . $nodeTranslation->getId();
 
-                    $this->documents[] = $this->provider->createDocument($uid, $doc, $this->indexType.'_'.$nodeTranslation->getLang(), $this->indexName);
+                    $this->documents[] = $this->search->createDocument($uid, $doc, $this->indexType.'_'.$nodeTranslation->getLang(), $this->indexName);
                 }
 
                 return true; // return true even if the page itself should not be indexed. This makes sure its children are being processed (i.e. structured nodes)
@@ -196,12 +196,12 @@ class NodePagesConfiguration implements SearchConfigurationInterface
     public function deleteNodeTranslation(NodeTranslation $nodeTranslation)
     {
         $uid = "nodetranslation_" . $nodeTranslation->getId();
-        $this->provider->deleteDocument($this->indexName, $this->indexType, $uid);
+        $this->search->deleteDocument($this->indexName, $this->indexType, $uid);
     }
 
     public function deleteIndex()
     {
-        $this->provider->deleteIndex($this->indexName);
+        $this->search->deleteIndex($this->indexName);
     }
 
     public function setAnalysis(\Elastica\Index $index, AnalysisFactory $analysis)
