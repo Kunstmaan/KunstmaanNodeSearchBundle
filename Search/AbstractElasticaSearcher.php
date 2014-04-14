@@ -39,18 +39,28 @@ abstract class AbstractElasticaSearcher
         $search->addIndex($index);
         $search->addType($index->getType($this->indexType.'_'.$this->language));
 
-//        $suggestTerm = new Suggest\Phrase('title-suggester', 'title');
-//        $suggestTerm->setText($this->data);
-//        $suggestTerm->setConfidence(0);
-//        $suggestTerm->setGramSize(2);
+        $result = $search->search($this->query);
 
-//        $suggest = new Suggest();
-//        $suggest->addSuggestion($suggestTerm);
-//        print_r($suggest->toArray());
-//
-//
-//        $search->setSuggest($suggest);
-//        var_dump($search->search($this->query)->hasSuggests()); exit;
+        return $result;
+    }
+
+    public function getSuggestions()
+    {
+        $suggestPrase = new Suggest\Phrase('content-suggester', 'content');
+        $suggestPrase->setText($this->data);
+        $suggestPrase->setAnalyzer('suggestion_analyzer_'.$this->language);
+        $suggestPrase->setHighlight("<strong>", "</strong>");
+        $suggestPrase->setConfidence(2);
+        $suggestPrase->setSize(1);
+
+        $suggest = new Suggest($suggestPrase);
+        $this->query->setSuggest($suggest);
+
+        $index = $this->provider->getIndex($this->getIndexName());
+        $search = new Search($this->provider->getClient());
+        $search->addIndex($index);
+        $search->addType($index->getType($this->indexType.'_'.$this->language));
+
         $result = $search->search($this->query);
 
         return $result;

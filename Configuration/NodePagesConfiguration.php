@@ -51,7 +51,8 @@ class NodePagesConfiguration implements SearchConfigurationInterface
         //create analysis
         $analysis = $this->container->get('kunstmaan_search.search.factory.analysis');
         foreach ($this->locales as $locale) {
-            $analysis->addIndexAnalyzer($locale);
+            $analysis->addIndexAnalyzer($locale)
+                ->addSuggestionAnalyzer($locale);
         }
 
         //create index with analysis

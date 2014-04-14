@@ -35,6 +35,14 @@ class SearcherRequestAdapter implements AdapterInterface
         return $this->fullResponse;
     }
 
+    public function getSuggestions()
+    {
+        $result = $this->searcher->getSuggestions();
+        $suggests = $result->getSuggests();
+
+        return $suggests['content-suggester'][0]['options'];
+    }
+
     /**
      * Returns the number of results.
      *
