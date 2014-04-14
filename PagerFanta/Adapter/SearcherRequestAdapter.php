@@ -2,24 +2,33 @@
 
 namespace Kunstmaan\NodeSearchBundle\PagerFanta\Adapter;
 
-use Kunstmaan\SearchBundle\Search\Search;
+use Kunstmaan\NodeSearchBundle\Search\SearcherInterface;
 use Pagerfanta\Adapter\AdapterInterface;
-use Sherlock\requests\SearchRequest;
+use Elastica\ResultSet;
 
 class SearcherRequestAdapter implements AdapterInterface
 {
     /**
-     * @var Search
+     * @var SearcherInterface
      */
     private $searcher;
 
     /**
-     * @var SearchRequest
+     * @var ResultSet
      */
     private $response;
+
+    /**
+     * @var ResultSet
+     */
     private $fullResponse;
 
-    public function __construct($searcher)
+    /**
+     * @var ResultSet
+     */
+    private $suggests;
+
+    public function __construct(SearcherInterface $searcher)
     {
         $this->searcher = $searcher;
         $this->fullResponse = $this->searcher->search();
@@ -27,18 +36,20 @@ class SearcherRequestAdapter implements AdapterInterface
 
     public function getResponse()
     {
-        return $this->fullResponse;
+        return $this->createBCResponse($this->fullResponse);
     }
 
     public function getFullResponse()
     {
-        return $this->fullResponse;
+        return $this->createBCResponse($this->fullResponse);
     }
 
     public function getSuggestions()
     {
-        $result = $this->searcher->getSuggestions();
-        $suggests = $result->getSuggests();
+        if(!isset($this->suggests)){
+            $this->suggests = $this->searcher->getSuggestions();
+        }
+        $suggests = $this->suggests->getSuggests();
 
         return $suggests['content-suggester'][0]['options'];
     }
@@ -64,6 +75,20 @@ class SearcherRequestAdapter implements AdapterInterface
     public function getSlice($offset, $length)
     {
         $this->response = $this->searcher->search($offset, $length);
-        return $this->response->getResults();
+        return $this->createBCResponse($this->response);
+    }
+
+    public function createBCResponse(ResultSet $result)
+    {
+        $data = $result->getResults();
+        $bcResponse = array();
+        foreach($data as $item){
+            $bcResponse[] = array(
+                '_source' => $item->getData(),
+                'highlight' => $item->getHighlights()
+            );
+        }
+
+        return $bcResponse;
     }
 }
