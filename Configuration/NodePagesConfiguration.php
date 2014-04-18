@@ -183,6 +183,13 @@ class NodePagesConfiguration implements SearchConfigurationInterface
                     // Add document to index
                     $uid = "nodetranslation_" . $nodeTranslation->getId();
 
+                    // Check if page is boosted
+                    $nodeSearch = $this->em->getRepository('KunstmaanNodeSearchBundle:NodeSearch')->findOneByNode($node);
+                    if($nodeSearch != null){
+                        $doc['_boost'] = $nodeSearch->getBoost();
+                    }
+
+
                     $this->documents[] = $this->search->createDocument($uid, $doc, $this->indexType.'_'.$nodeTranslation->getLang(), $this->indexName);
                 }
 
