@@ -33,8 +33,8 @@ services:
             - { name: kernel.event_listener, event: kunstmaan_node.postDelete, method: onPostDelete }
             - { name: kernel.event_listener, event: kunstmaan_node.postUnPublish, method: onPostUnPublish }
 
-    kunstmaan_node_search.edit_node.listener:
-        class: Kunstmaan\NodeSearchBundle\EventListener\NodeListener
-        arguments: ["@doctrine.orm.entity_manager"]
-        tags:
-            - { name: kernel.event_listener, event: kunstmaan_node.adaptForm, method: adaptForm }
+#    kunstmaan_node_search.edit_node.listener:
+#        class: Kunstmaan\NodeSearchBundle\EventListener\NodeListener
+#        arguments: ["@doctrine.orm.entity_manager"]
+#        tags:
+#            - { name: kernel.event_listener, event: kunstmaan_node.adaptForm, method: adaptForm }
