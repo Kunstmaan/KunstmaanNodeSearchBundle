@@ -75,7 +75,9 @@ class SearcherRequestAdapter implements AdapterInterface
     public function getSlice($offset, $length)
     {
         $this->response = $this->searcher->search($offset, $length);
-        return $this->createBCResponse($this->response);
+        $response = $this->createBCResponse($this->response);
+
+        return $response['hits'];
     }
 
     public function createBCResponse(ResultSet $result)
@@ -91,7 +93,12 @@ class SearcherRequestAdapter implements AdapterInterface
                 $content['highlight'] = $highlights;
             }
 
-            $bcResponse[] = $content;
+            $bcResponse['hits'][] = $content;
+        }
+
+        if($result->hasFacets()){
+            $bcResponse['facets'] = $result->getFacets();
+
         }
 
         return $bcResponse;
