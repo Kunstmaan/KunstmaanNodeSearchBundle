@@ -36,7 +36,7 @@ class SearcherRequestAdapter implements AdapterInterface
 
     public function getResponse()
     {
-        return $this->createBCResponse($this->fullResponse);
+        return $this->createBCResponse($this->response);
     }
 
     public function getFullResponse()
@@ -80,8 +80,12 @@ class SearcherRequestAdapter implements AdapterInterface
         return $response['hits'];
     }
 
-    public function createBCResponse(ResultSet $result)
+    public function createBCResponse(ResultSet $result = null)
     {
+        if($result == null){
+            return $result;
+        }
+
         $data = $result->getResults();
         $bcResponse = array();
         foreach($data as $item){

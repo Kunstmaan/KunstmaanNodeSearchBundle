@@ -14,7 +14,7 @@ use Elastica\Search;
 use Elastica\Suggest;
 use Kunstmaan\SearchBundle\Search\Search as SearchLayer;
 
-abstract class AbstractElasticaSearcher
+abstract class AbstractElasticaSearcher implements SearcherInterface
 {
     protected   $indexName;
     protected   $indexType;
@@ -34,6 +34,8 @@ abstract class AbstractElasticaSearcher
     {
         $this->query = new Query();
     }
+
+    abstract public function defineSearch($query, $lang, $type);
 
     public function search($offset = null, $size = null){
         $this->defineSearch($this->data, $this->language, $this->contentType);
