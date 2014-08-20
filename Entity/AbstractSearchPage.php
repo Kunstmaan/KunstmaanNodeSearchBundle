@@ -5,6 +5,7 @@ namespace Kunstmaan\NodeSearchBundle\Entity;
 use Doctrine\ORM\Mapping as ORM;
 use Kunstmaan\NodeBundle\Entity\AbstractPage;
 use Kunstmaan\NodeBundle\Helper\RenderContext;
+use Kunstmaan\NodeSearchBundle\PagerFanta\Adapter\SearcherRequestAdapter;
 use Kunstmaan\NodeSearchBundle\PagerFanta\Adapter\SherlockRequestAdapter;
 use Kunstmaan\SearchBundle\Helper\ShouldBeIndexed;
 use Pagerfanta\Exception\NotValidCurrentPageException;
@@ -79,42 +80,12 @@ class AbstractSearchPage extends AbstractPage implements ShouldBeIndexed
      */
     public function search(ContainerInterface $container, $querystring, $type, array $tags, $lang, $pagenumber)
     {
-        $search = $container->get('kunstmaan_search.search');
-        $sherlock = $container->get('kunstmaan_search.searchprovider.sherlock');
-        $request = $sherlock->getSherlock()->search();
+        $searcher = $container->get($this->getSearcher());
+        $searcher->setData($querystring);
+        $searcher->setContentType($type);
+        $searcher->setLanguage($lang);
 
-        $titleQuery = Sherlock::queryBuilder()->Match()->field("title")->query($querystring)->fuzziness(0.7);
-        $contentQuery = Sherlock::queryBuilder()->Match()->field("content")->query($querystring)->fuzziness(0.7);
-        $langQuery = Sherlock::queryBuilder()->Term()->field("lang")->term($lang);
-
-        $querystringQuery = Sherlock::queryBuilder()->Bool()->should($titleQuery, $contentQuery)->minimum_number_should_match(1);
-        $query = Sherlock::queryBuilder()->Bool()->must($langQuery, $querystringQuery)->minimum_number_should_match(1);
-
-        if (count($tags) > 0) {
-            $tagQueries = array();
-            foreach ($tags as $tag) {
-                $tagQueries[] = Sherlock::queryBuilder()->Term()->field("tags")->term($tag);
-            }
-            $tagQuery = Sherlock::queryBuilder()->Bool()->must($tagQueries)->minimum_number_should_match(1);
-            $query = Sherlock::queryBuilder()->Bool()->must($tagQuery, $query)->minimum_number_should_match(1);
-        }
-
-        if ($type && $type != '') {
-            $typeQuery = Sherlock::queryBuilder()->Term()->field("type")->term($type);
-            $query = Sherlock::queryBuilder()->Bool()->must($typeQuery, $query)->minimum_number_should_match(1);
-        }
-
-        $request->query($query);
-
-        $tagFacet = Sherlock::facetBuilder()->Terms()->fields("tags")->facetname("tag");
-        $typeFacet = Sherlock::facetBuilder()->Terms()->fields("type")->facetname("type");
-        $request->facets($tagFacet, $typeFacet);
-
-        $highlight = Sherlock::highlightBuilder()->Highlight()->pre_tags(array("<strong>"))->post_tags(array("</strong>"))->fields(array("content" => array("fragment_size" => 250, "number_of_fragments" => 1)));
-
-        $request->highlight($highlight);
-
-        $adapter = new SherlockRequestAdapter($search, "nodeindex", "page", $request);
+        $adapter = new SearcherRequestAdapter($searcher);
         $pagerfanta = new Pagerfanta($adapter);
         $pagerfanta->setMaxPerPage($this->defaultperpage);
         try {
@@ -148,5 +119,13 @@ class AbstractSearchPage extends AbstractPage implements ShouldBeIndexed
     public function shouldBeIndexed()
     {
         return false;
+    }
+
+    /**
+     * @return string
+     */
+    public function getSearcher()
+    {
+        return 'kunstmaan_node_search.search.node';
     }
 }
