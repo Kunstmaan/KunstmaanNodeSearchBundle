@@ -18,11 +18,15 @@ class Configuration implements ConfigurationInterface
     public function getConfigTreeBuilder()
     {
         $treeBuilder = new TreeBuilder();
-        $rootNode = $treeBuilder->root('kunstmaan_node_search');
+        $rootNode    = $treeBuilder->root('kunstmaan_node_search');
 
-        // Here you should define the parameters that are allowed to
-        // configure your bundle. See the documentation linked above for
-        // more information on that topic.
+        $rootNode
+            ->children()
+                ->booleanNode('enable_update_listener')
+                    ->defaultTrue()
+                ->end()
+            ->end();
+
         return $treeBuilder;
     }
 }

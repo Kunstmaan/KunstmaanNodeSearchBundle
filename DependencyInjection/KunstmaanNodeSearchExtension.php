@@ -24,5 +24,9 @@ class KunstmaanNodeSearchExtension extends Extension
 
         $loader = new Loader\YamlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('services.yml');
+
+        if (!empty($config['enable_update_listener']) && $config['enable_update_listener']) {
+            $loader->load('update_listener.yml');
+        }
     }
 }
